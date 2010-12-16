@@ -1,0 +1,6 @@
+baseDir = C:\tools\Chromium
+unzip = C:\tools\Chromium\unzip.exe
+revUrl = http://build.chromium.org/f/chromium/continuous/win/LATEST/REVISION, System.Uri
+zipUrl = http://build.chromium.org/f/chromium/continuous/win/LATEST/chrome-win32.zip, System.Uri
+exeName = chrome
+sleepSec = 60, System.Int32
