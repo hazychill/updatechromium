@@ -54,6 +54,12 @@ public static class Program {
   private static void Exec() {
     SettingsManager smng = new SettingsManager();
     LoadSettings(smng);
+
+    if (IsSuspended(smng)) {
+      OutputMessage("updatechromium suspended.");
+      return;
+    }
+
     string baseDir = smng.GetItem<string>("baseDir");
     string unzip = smng.GetItem<string>("unzip");
     Uri revUrl = smng.GetItem<Uri>("revUrl");
@@ -114,6 +120,18 @@ public static class Program {
     Assembly myAssembly = Assembly.GetEntryAssembly();
     string path = myAssembly.Location;
     return Path.GetDirectoryName(path);
+  }
+
+  private static bool IsSuspended(ISettingsManager smng) {
+    string suspendFileName;
+    if (smng.TryGetItem("suspendFileName", out suspendFileName)) {
+      string execDir = GetExecDir();
+      string suspendFilePath = Path.Combine(execDir, suspendFileName);
+      return File.Exists(suspendFilePath);
+    }
+    else {
+      return false;
+    }
   }
 
   private static int GetRevision(Uri revUrl) {

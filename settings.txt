@@ -4,3 +4,4 @@ revUrl = http://build.chromium.org/f/chromium/continuous/win/LATEST/REVISION, Sy
 zipUrl = http://build.chromium.org/f/chromium/continuous/win/LATEST/chrome-win32.zip, System.Uri
 exeName = chrome
 sleepSec = 10, System.Int32
+suspendFileName = suspended
