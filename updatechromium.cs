@@ -105,7 +105,34 @@ public static class Program {
       WaitExeForExit(exeName, sleepSec);
     }
 
-    Unzip(unzip, downloadPath, baseDir);
+    int backupNum = Unzip(unzip, downloadPath, baseDir);
+
+    OutputMessage("Remove old versions");
+    int backupCycle;
+    if (!smng.TryGetItem("backupCycle", out backupCycle)) {
+      backupCycle = int.MaxValue;
+    }
+    var oldVersionDirectoryQuery = Directory.GetDirectories(baseDir)
+      .Select(x => Path.GetFileName(x))
+      .Where(x => Regex.IsMatch(x, "^chrome-win32~(?<num>\\d+)$")) // ^chrome-win32~(?<num>\d+)$
+      .OrderByDescending(x => int.Parse(Regex.Match(x, "^chrome-win32~(?<num>\\d+)$").Groups["num"].Value))
+      .Skip(backupCycle)
+      .Select(x => Path.Combine(baseDir, x));
+
+    foreach (string backupToDelete in oldVersionDirectoryQuery) {
+      Directory.Delete(backupToDelete, true);
+    }
+
+    var oldVersionZipQuery = Directory.GetFiles(baseDir)
+      .Select(x => Path.GetFileName(x))
+      .Where(x => Regex.IsMatch(x, "^chrome-win32_rev(?<rev>\\d+)\\.zip$")) // ^chrome-win32_rev(?<rev>\d+)\.zip$
+      .OrderByDescending(x => int.Parse(Regex.Match(x, "^chrome-win32_rev(?<rev>\\d+)\\.zip$").Groups["rev"].Value))
+      .Skip(backupCycle)
+      .Select(x => Path.Combine(baseDir, x));
+
+    foreach (string backupToDelete in oldVersionZipQuery) {
+      File.Delete(backupToDelete);
+    }
 
     OutputMessage("All done");
   }
@@ -163,7 +190,7 @@ public static class Program {
     } while (IsExeRunning(exeName));
   }
 
-  private static void Unzip(string unzip, string downloadPath, string baseDir) {
+  private static int Unzip(string unzip, string downloadPath, string baseDir) {
     int currentBackupNum = Directory.GetDirectories(baseDir, "chrome-win32~*")
       .Select(x => int.Parse(Regex.Match(x, "chrome-win32~(\\d+)").Groups[1].Value))
       .OrderByDescending(x => x)
@@ -197,6 +224,8 @@ public static class Program {
       process.BeginErrorReadLine();
       process.WaitForExit();
     }
+
+    return backupNum;
   }
 
   private static void OutputMessage(object message) {

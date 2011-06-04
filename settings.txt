@@ -5,3 +5,4 @@ zipUrl = http://build.chromium.org/f/chromium/continuous/win/LATEST/chrome-win32
 exeName = chrome
 sleepSec = 10, System.Int32
 suspendFileName = suspended
+backupCycle = 5, System.Int32
