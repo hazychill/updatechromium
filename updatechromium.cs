@@ -67,7 +67,7 @@ public static class Program {
     string exeName = smng.GetItem<string>("exeName");
     int sleepSec = smng.GetItem<int>("sleepSec");
 
-    int rev = GetRevision(revUrl);
+    int rev = GetRevision(revUrl, smng);
     string downloadFile = string.Format("chrome-win32_rev{0}.zip", rev);
     string downloadPath = Path.Combine(baseDir, downloadFile);
     if (File.Exists(downloadPath)) {
@@ -77,6 +77,7 @@ public static class Program {
 
     OutputMessage(string.Format("Downloading {0}", downloadPath));
     HttpWebRequest request = WebRequest.Create(zipUrl) as HttpWebRequest;
+    GetProxySettings(request, smng);
     long contentLength;
     using (HttpWebResponse response = request.GetResponse() as HttpWebResponse) {
       contentLength = response.ContentLength;
@@ -161,8 +162,9 @@ public static class Program {
     }
   }
 
-  private static int GetRevision(Uri revUrl) {
+  private static int GetRevision(Uri revUrl, ISettingsManager smng) {
     HttpWebRequest request = WebRequest.Create(revUrl) as HttpWebRequest;
+    GetProxySettings(request, smng);
     using (HttpWebResponse response = request.GetResponse() as HttpWebResponse)
     using (Stream responseStream = response.GetResponseStream())
     using (TextReader reader = new StreamReader(responseStream, new UTF8Encoding())) {
@@ -226,6 +228,15 @@ public static class Program {
     }
 
     return backupNum;
+  }
+
+  private static void GetProxySettings(HttpWebRequest request, ISettingsManager smng) {
+    string proxyHost;
+    int proxyPort;
+    if (smng.TryGetItem("proxyHost", out proxyHost) &&
+        smng.TryGetItem("proxyPort", out proxyPort)) {
+      request.Proxy = new WebProxy(proxyHost, proxyPort);
+    }
   }
 
   private static void OutputMessage(object message) {

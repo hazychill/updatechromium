@@ -6,3 +6,5 @@ exeName = chrome
 sleepSec = 10, System.Int32
 suspendFileName = suspended
 backupCycle = 5, System.Int32
+# proxyHost = localhost
+# proxyPort = 8080, System.Int32
