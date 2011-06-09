@@ -63,7 +63,7 @@ public static class Program {
     string baseDir = smng.GetItem<string>("baseDir");
     string unzip = smng.GetItem<string>("unzip");
     Uri revUrl = smng.GetItem<Uri>("revUrl");
-    Uri zipUrl = smng.GetItem<Uri>("zipUrl");
+    string zipUrlTemplate = smng.GetItem<string>("zipUrlTemplate");
     string exeName = smng.GetItem<string>("exeName");
     int sleepSec = smng.GetItem<int>("sleepSec");
 
@@ -76,6 +76,8 @@ public static class Program {
     }
 
     OutputMessage(string.Format("Downloading {0}", downloadPath));
+    string zipUrlStr = zipUrlTemplate.Replace("{revision}", rev.ToString());
+    Uri zipUrl = new Uri(zipUrlStr);
     HttpWebRequest request = WebRequest.Create(zipUrl) as HttpWebRequest;
     GetProxySettings(request, smng);
     long contentLength;

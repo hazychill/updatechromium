@@ -1,7 +1,7 @@
 baseDir = C:\tools\Chromium
 unzip = C:\tools\Chromium\unzip.exe
-revUrl = http://build.chromium.org/f/chromium/continuous/win/LATEST/REVISION, System.Uri
-zipUrl = http://build.chromium.org/f/chromium/continuous/win/LATEST/chrome-win32.zip, System.Uri
+revUrl = http://commondatastorage.googleapis.com/chromium-browser-continuous/Win/LAST_CHANGE, System.Uri
+zipUrlTemplate = http://commondatastorage.googleapis.com/chromium-browser-continuous/Win/{revision}/chrome-win32.zip
 exeName = chrome
 sleepSec = 10, System.Int32
 suspendFileName = suspended
