@@ -137,6 +137,8 @@ public static class Program {
       File.Delete(backupToDelete);
     }
 
+    BackupProfile(smng);
+
     OutputMessage("All done");
   }
 
@@ -249,5 +251,72 @@ public static class Program {
   private static void OutputError(object message) {
     DateTime now = DateTime.Now;
     Console.Error.WriteLine("{0}  {1}", now.ToString("yyyy-MM-ddTHH:mm:ss.fff"), message);
+  }
+
+  private static void BackupProfile(ISettingsManager smng) {
+    string ffc;
+    string profileDir;
+    string profileBackup;
+    int profileBackupCycle;
+
+    if (!smng.TryGetItem<string>("ffc", out ffc)) {
+      return;
+    }
+    if (!smng.TryGetItem<string>("profileDir", out profileDir)) {
+      return;
+    }
+    if (!smng.TryGetItem<string>("profileBackup", out profileBackup)) {
+      return;
+    }
+    if (!smng.TryGetItem<int>("profileBackupCycle", out profileBackupCycle)) {
+      return;
+    }
+    else if (profileBackupCycle < 1) {
+      return;
+    }
+
+    if (File.Exists(ffc) && Directory.Exists(profileDir) && Directory.Exists(profileBackup)) {
+      OutputMessage("Backup profile directory");
+      string src = profileDir.TrimEnd('\\', '/');
+      string dstNewDir = string.Format("ChromiumUserData_{0}", DateTime.Now.ToString("yyyyMMddHHmmssfff"));
+      string dst = Path.Combine(profileBackup, dstNewDir);
+      OutputMessage(string.Format("  {0} -> {1}", src, dst));
+      ProcessStartInfo startInfo = new ProcessStartInfo(ffc);
+
+      startInfo.Arguments = string.Format("\"{0}\" /to:\"{1}\" /ed /md /ft:15", src, dst);
+      startInfo.CreateNoWindow = false;
+      startInfo.UseShellExecute = false;
+      using (Process process = new Process()) {
+        process.StartInfo = startInfo;
+        process.Start();
+        process.WaitForExit();
+        int exitCode = process.ExitCode;
+        if (exitCode == 0) {
+          DeleteOldProfileBackup(profileBackup, profileBackupCycle);
+        }
+        else {
+          OutputError(string.Format("ffc has exited with code {0}", exitCode));
+        }
+      }
+    }
+  }
+
+  private static void DeleteOldProfileBackup(string profileBackup, int profileBackupCycle) {
+    var oldProfileBackupQuery = Directory.GetDirectories(profileBackup)
+      .Select(x => Path.GetFileName(x))
+      .Where(x => Regex.IsMatch(x, "^ChromiumUserData_(\\d{17})$")) // ^ChromiumUserData_(\d{17})$
+      .OrderByDescending(x => x)
+      .Skip(profileBackupCycle)
+      .Select(x => Path.Combine(profileBackup, x));
+
+    bool isFirst = true;
+    foreach (string oldProfileBackup in oldProfileBackupQuery) {
+      if (isFirst) {
+        isFirst = false;
+        OutputMessage("Remove old profile backups");
+      }
+      OutputMessage(string.Format("  {0}", oldProfileBackup));
+      Directory.Delete(oldProfileBackup, true);
+    }
   }
 }
