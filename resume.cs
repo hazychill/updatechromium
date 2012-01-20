@@ -29,6 +29,7 @@ public class Program {
       OutputError(e);
     }
     finally {
+      while (Console.KeyAvailable) Console.ReadKey();
       OutputMessage("Press enter to exit");
       Console.ReadLine();
     }
