@@ -85,13 +85,23 @@ public static class Program {
     using (HttpWebResponse response = request.GetResponse() as HttpWebResponse) {
       contentLength = response.ContentLength;
       OutputMessage(string.Format("Total {0} bytes", contentLength));
+      var percentage = 0L;
+      var prevPercentage = -1L;
+      var current = 0L;
       using (Stream input = response.GetResponseStream())
       using (Stream output = File.Open(downloadPath, FileMode.Create, FileAccess.Write, FileShare.None)) {
         byte[] buffer = new byte[8192];
         int count;
         while ((count = input.Read(buffer, 0, buffer.Length)) > 0) {
           output.Write(buffer, 0, count);
+          current += count;
+          percentage = current * 100L / contentLength;
+          if (prevPercentage < percentage) {
+            prevPercentage = percentage;
+            Console.Write("\b\b\b\b{0,3}%", percentage);
+          }
         }
+        Console.WriteLine();
       }
     }
 
