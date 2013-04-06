@@ -150,6 +150,8 @@ public static class Program {
 
     BackupProfile(smng);
 
+    DeleteTempFiles(smng);
+
     OutputMessage("All done");
   }
 
@@ -328,6 +330,36 @@ public static class Program {
       }
       OutputMessage(string.Format("  {0}", oldProfileBackup));
       Directory.Delete(oldProfileBackup, true);
+    }
+  }
+
+  private static void DeleteTempFiles(ISettingsManager smng) {
+    string profileDir;
+    if (!smng.TryGetItem("profileDir", out profileDir)) {
+      return;
+    }
+
+    var rootDir = new DirectoryInfo(profileDir);
+    if (!rootDir.Exists) {
+      return;
+    }
+
+    var patterns = new[] {
+      // ^Local State~RF[0-9a-f]+\.TMP$
+      new Regex("^Local State~RF[0-9a-f]+\\.TMP$"),
+      // ^Preferences~RF[0-9a-f]+\.TMP$
+      new Regex("^Preferences~RF[0-9a-f]+\\.TMP$"),
+      // ^TransportSecurity~RF[0-9a-f]+\.TMP$
+      new Regex("^TransportSecurity~RF[0-9a-f]+\\.TMP$")
+    };
+
+    var tempFiles = rootDir.EnumerateFiles("*", SearchOption.AllDirectories)
+      .Where(x => patterns.Any(r => r.IsMatch(x.Name)))
+      .ToArray();
+
+    OutputMessage("Remove temp files");
+    foreach (var x in tempFiles) {
+      x.Delete();
     }
   }
 }
