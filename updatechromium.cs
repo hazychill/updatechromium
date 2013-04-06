@@ -16,6 +16,7 @@ public static class Program {
 
   public static void Main() {
     Mutex mutex = null;
+    var shouldWait = true;
     try {
       bool createdNew;
       mutex = new Mutex(true, MUTEX_NAME, out createdNew);
@@ -25,15 +26,17 @@ public static class Program {
         return;
       }
 
-      Exec();
+      shouldWait = Exec();
     }
     catch (Exception e) {
       OutputError(e);
     }
     finally {
-      while (Console.KeyAvailable) Console.ReadKey();
-      OutputMessage("Press enter to exit");
-      Console.ReadLine();
+      if (shouldWait) {
+        while (Console.KeyAvailable) Console.ReadKey();
+        OutputMessage("Press enter to exit");
+        Console.ReadLine();
+      }
 
       if (mutex != null) {
         try {
@@ -52,13 +55,13 @@ public static class Program {
     }
   }
 
-  private static void Exec() {
+  private static bool Exec() {
     SettingsManager smng = new SettingsManager();
     LoadSettings(smng);
 
     if (IsSuspended(smng)) {
       OutputMessage("updatechromium suspended.");
-      return;
+      return false;
     }
 
     string baseDir = smng.GetItem<string>("baseDir");
@@ -73,7 +76,7 @@ public static class Program {
     string downloadPath = Path.Combine(baseDir, downloadFile);
     if (File.Exists(downloadPath)) {
       OutputMessage("Latest.");
-      return;
+      return false;
     }
 
     OutputMessage(string.Format("Downloading {0}", downloadPath));
@@ -111,7 +114,7 @@ public static class Program {
       OutputError("Error occurred while downloading file");
       OutputError(string.Format("  ContentLength: {0}, Downloaded: {1}",
                                 contentLength, fileLength));
-      return;
+      return true;
     }
 
     if (IsExeRunning(exeName)) {
@@ -153,6 +156,8 @@ public static class Program {
     DeleteTempFiles(smng);
 
     OutputMessage("All done");
+
+    return true;
   }
 
   private static void LoadSettings(SettingsManager smng) {
