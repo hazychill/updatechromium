@@ -3,7 +3,7 @@ CSC=C:\Windows\Microsoft.NET\Framework\v4.0.30319\csc.exe
 all: updatechromium.exe suspend.exe resume.exe
 
 updatechromium.exe: updatechromium.cs
-	$(CSC) /debug /out:$@ /r:SettingsManager.dll updatechromium.cs
+	$(CSC) /debug /out:$@ /r:System.Net.Http.dll /r:SettingsManager.dll updatechromium.cs
 
 suspend.exe: suspend.cs
 	$(CSC) /debug /out:$@ /r:SettingsManager.dll suspend.cs

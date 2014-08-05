@@ -1,5 +1,6 @@
 using System;
 using System.Net;
+using System.Net.Http;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -56,7 +57,7 @@ public static class Program {
   }
 
   private static bool Exec() {
-    SettingsManager smng = new SettingsManager();
+    var smng = new SettingsManager();
     LoadSettings(smng);
 
     if (IsSuspended(smng)) {
@@ -64,36 +65,49 @@ public static class Program {
       return false;
     }
 
-    string baseDir = smng.GetItem<string>("baseDir");
-    string unzip = smng.GetItem<string>("unzip");
-    Uri revUrl = smng.GetItem<Uri>("revUrl");
+    var baseDir = smng.GetItem<string>("baseDir");
+    var unzip = smng.GetItem<string>("unzip");
+    var hashUrl = smng.GetItem<Uri>("hashUrl");
     string zipUrlTemplate = smng.GetItem<string>("zipUrlTemplate");
-    string exeName = smng.GetItem<string>("exeName");
-    int sleepSec = smng.GetItem<int>("sleepSec");
+    var exeName = smng.GetItem<string>("exeName");
+    var sleepSec = smng.GetItem<int>("sleepSec");
 
-    int rev = GetRevision(revUrl, smng);
-    string downloadFile = string.Format("chrome-win32_rev{0}.zip", rev);
-    string downloadPath = Path.Combine(baseDir, downloadFile);
-    if (File.Exists(downloadPath)) {
+    var hash = GetLatestHash(hashUrl, smng); //TODO
+    var timestamp = DateTime.Now.ToString("yyyyMMddHHmmssfff");
+    var pattern = string.Format("chrome-win32_*_{0}.zip", hash);
+    if (Directory.EnumerateFiles(baseDir, pattern).Any()) {
       OutputMessage("Latest.");
       return false;
     }
+    var downloadFile = string.Format("chrome-win32_{0}_{1}.zip", timestamp, hash);
+    var downloadPath = Path.Combine(baseDir, downloadFile);
 
     OutputMessage(string.Format("Downloading {0}", downloadPath));
-    string zipUrlStr = zipUrlTemplate.Replace("{revision}", rev.ToString());
-    Uri zipUrl = new Uri(zipUrlStr);
-    HttpWebRequest request = WebRequest.Create(zipUrl) as HttpWebRequest;
-    GetProxySettings(request, smng);
+    var zipUrlStr = zipUrlTemplate.Replace("{hash}", hash);
+    var zipUrl = new Uri(zipUrlStr);
+    string proxyHost;
+    int proxyPort;
+    var clientHandler = new HttpClientHandler();
+    if (smng.TryGetItem<string>("proxyHost", out proxyHost)) {
+      if (!smng.TryGetItem<int>("proxyPort", out proxyPort)) {
+        proxyPort = 8080;
+      }
+      var proxy = new WebProxy(proxyHost, proxyPort);
+      clientHandler.Proxy = proxy;
+    }
+    var client = new HttpClient(clientHandler);
+    var dlTask = client.GetAsync(zipUrl);
     long contentLength;
-    using (HttpWebResponse response = request.GetResponse() as HttpWebResponse) {
-      contentLength = response.ContentLength;
+    using (var response = dlTask.Result)
+    using (var content = response.Content) {
+      contentLength = content.Headers.ContentLength ?? -1;
       OutputMessage(string.Format("Total {0} bytes", contentLength));
       var percentage = 0L;
       var prevPercentage = -1L;
       var current = 0L;
-      using (Stream input = response.GetResponseStream())
-      using (Stream output = File.Open(downloadPath, FileMode.Create, FileAccess.Write, FileShare.None)) {
-        byte[] buffer = new byte[8192];
+      using (var input = content.ReadAsStreamAsync().Result)
+      using (var output = File.Open(downloadPath, FileMode.Create, FileAccess.Write, FileShare.None)) {
+        var buffer = new byte[8192];
         int count;
         while ((count = input.Read(buffer, 0, buffer.Length)) > 0) {
           output.Write(buffer, 0, count);
@@ -108,7 +122,7 @@ public static class Program {
       }
     }
 
-    FileInfo downloadFileInfo = new FileInfo(downloadPath);
+    var downloadFileInfo = new FileInfo(downloadPath);
     long fileLength = downloadFileInfo.Length;
     if (fileLength != contentLength) {
       OutputError("Error occurred while downloading file");
@@ -142,8 +156,8 @@ public static class Program {
 
     var oldVersionZipQuery = Directory.GetFiles(baseDir)
       .Select(x => Path.GetFileName(x))
-      .Where(x => Regex.IsMatch(x, "^chrome-win32_rev(?<rev>\\d+)\\.zip$")) // ^chrome-win32_rev(?<rev>\d+)\.zip$
-      .OrderByDescending(x => int.Parse(Regex.Match(x, "^chrome-win32_rev(?<rev>\\d+)\\.zip$").Groups["rev"].Value))
+      .Where(x => Regex.IsMatch(x, "^chrome-win32_(?<timestamp>\\d+)_[0-9a-f]{40}\\.zip$")) // ^chrome-win32_(?<timestamp>\d+)_[0-9a-f]{40}\.zip$
+      .OrderByDescending(x => Regex.Match(x, "^chrome-win32_(?<timestamp>\\d+)_[0-9a-f]{40}\\.zip$").Groups["timestamp"].Value)
       .Skip(backupCycle)
       .Select(x => Path.Combine(baseDir, x));
 
@@ -184,15 +198,14 @@ public static class Program {
     }
   }
 
-  private static int GetRevision(Uri revUrl, ISettingsManager smng) {
-    HttpWebRequest request = WebRequest.Create(revUrl) as HttpWebRequest;
+  private static string GetLatestHash(Uri hashUrl, ISettingsManager smng) {
+    HttpWebRequest request = WebRequest.Create(hashUrl) as HttpWebRequest;
     GetProxySettings(request, smng);
     using (HttpWebResponse response = request.GetResponse() as HttpWebResponse)
     using (Stream responseStream = response.GetResponseStream())
     using (TextReader reader = new StreamReader(responseStream, new UTF8Encoding())) {
       string revStr = reader.ReadLine();
-      int rev = int.Parse(revStr);
-      return rev;
+      return revStr;
     }
   }
 
