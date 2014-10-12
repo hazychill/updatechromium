@@ -154,12 +154,15 @@ public static class Program {
       Directory.Delete(backupToDelete, true);
     }
 
+    // ^chrome-win32_(?<timestamp>\d+)_[0-9a-f]+\.zip$
+    var zipPattern = "^chrome-win32_(?<timestamp>\\d+)_[0-9a-f]+\\.zip$";
     var oldVersionZipQuery = Directory.GetFiles(baseDir)
       .Select(x => Path.GetFileName(x))
-      .Where(x => Regex.IsMatch(x, "^chrome-win32_(?<timestamp>\\d+)_[0-9a-f]{40}\\.zip$")) // ^chrome-win32_(?<timestamp>\d+)_[0-9a-f]{40}\.zip$
-      .OrderByDescending(x => Regex.Match(x, "^chrome-win32_(?<timestamp>\\d+)_[0-9a-f]{40}\\.zip$").Groups["timestamp"].Value)
+      .Select(x => Regex.Match(x, zipPattern))
+      .Where(m => m.Success)
+      .OrderByDescending(m => m.Groups["timestamp"].Value)
       .Skip(backupCycle)
-      .Select(x => Path.Combine(baseDir, x));
+      .Select(m => Path.Combine(baseDir, m.Value));
 
     foreach (string backupToDelete in oldVersionZipQuery) {
       File.Delete(backupToDelete);
