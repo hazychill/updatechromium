@@ -96,7 +96,7 @@ public static class Program {
       clientHandler.Proxy = proxy;
     }
     var client = new HttpClient(clientHandler);
-    var dlTask = client.GetAsync(zipUrl);
+    var dlTask = client.GetAsync(zipUrl, HttpCompletionOption.ResponseHeadersRead);
     long contentLength;
     using (var response = dlTask.Result)
     using (var content = response.Content) {
