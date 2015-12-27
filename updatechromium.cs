@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -15,6 +16,8 @@ using Hazychill.Setting;
 public static class Program {
   private static object consoleWriteLock = new object();
   private static object httpClientSetupLock = new object();
+
+  private static ConcurrentDictionary<Exception, Object> errorMemo;
 
   private const string MUTEX_NAME = "FE904DE5-11D9-420A-E54D-90FED9110A42";
 
@@ -42,6 +45,10 @@ public static class Program {
   private const string SMNGKEY_HTTP_CLIENT = "httpClient";
   private const string SMNGKEY_DOWNLOAD_PATH = "downloadPath";
   private const string SMNGKEY_UNZIPPED_DIR = "unzippedDir";
+
+  static Program() {
+    errorMemo = new ConcurrentDictionary<Exception, object>();
+  }
 
   public static void Main() {
     Mutex mutex = null;
@@ -106,7 +113,7 @@ public static class Program {
     }, cancellationToken);
     checkSuspendedTask.ContinueWith(task => {
       if (task.IsFaulted) {
-        OutputTaskError(task.Exception);
+        OutputError(task.Exception);
         cts.Cancel();
       }
       mreCheckSuspendedFinished.Set();
@@ -126,7 +133,7 @@ public static class Program {
     }, cancellationToken);
     getRevisionTask.ContinueWith(task => {
       if (task.IsFaulted) {
-        OutputTaskError(task.Exception);
+        OutputError(task.Exception);
         cts.Cancel();
       }
       mreGetRevisionFinished.Set();
@@ -140,7 +147,7 @@ public static class Program {
     }, cancellationToken);
     downloadTask.ContinueWith(task => {
       if (task.IsFaulted) {
-        OutputTaskError(task.Exception);
+        OutputError(task.Exception);
         cts.Cancel();
       }
       mreZipDownloadFinished.Set();
@@ -154,7 +161,7 @@ public static class Program {
     }, cancellationToken);
     unzipTask.ContinueWith(task => {
       if (task.IsFaulted) {
-        OutputTaskError(task.Exception);
+        OutputError(task.Exception);
         cts.Cancel();
       }
       mreUnzipFinished.Set();
@@ -168,7 +175,7 @@ public static class Program {
     }, cancellationToken);
     waitChromiumExitTask.ContinueWith(task => {
       if (task.IsFaulted) {
-        OutputTaskError(task.Exception);
+        OutputError(task.Exception);
         cts.Cancel();
       }
       mreChromiumExited.Set();
@@ -182,7 +189,7 @@ public static class Program {
     }, cancellationToken);
     backupExeDirTask.ContinueWith(task => {
       if (task.IsFaulted) {
-        OutputTaskError(task.Exception);
+        OutputError(task.Exception);
         cts.Cancel();
       }
       mreBackupExeDirFinished.Set();
@@ -196,7 +203,7 @@ public static class Program {
     }, cancellationToken);
     backupProfileDirTask.ContinueWith(task => {
       if (task.IsFaulted) {
-        OutputTaskError(task.Exception);
+        OutputError(task.Exception);
         cts.Cancel();
       }
       mreBackupProfileDirFinished.Set();
@@ -644,7 +651,7 @@ public static class Program {
     DateTime now = DateTime.Now;
     lock (consoleWriteLock) {
       foreach (var m in lines) {
-        Console.Error.WriteLine("{0}  {1}", now.ToString("yyyy-MM-ddTHH:mm:ss.fff"), message);
+        Console.Error.WriteLine("{0}  {1}", now.ToString("yyyy-MM-ddTHH:mm:ss.fff"), m);
       }
     }
   }
@@ -656,14 +663,22 @@ public static class Program {
     OutputMessage(m, Console.Out);
   }
 
-  private static void OutputError(object message) {
+  private static void OutputErrorMessage(object message) {
     var m = (message as string) ?? message.ToString();
     OutputMessage(m, Console.Error);
   }
 
-  private static void OutputTaskError(AggregateException ae) {
-    foreach (var e in ae.InnerExceptions) {
-      OutputError(e);
+  private static void OutputError(Exception e) {
+    var ae = e as AggregateException;
+    if (ae == null) {
+      if (errorMemo.TryAdd(e, null)) {
+        OutputErrorMessage(e);
+      }
+    }
+    else {
+      foreach (var e2 in ae.InnerExceptions) {
+        OutputError(e2);
+      }
     }
   }
 
