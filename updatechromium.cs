@@ -70,6 +70,7 @@ public static class Program {
     finally {
       if (shouldWait) {
         while (Console.KeyAvailable) Console.ReadKey();
+        OutputMessage("");
         OutputMessage("Press enter to exit");
         Console.ReadLine();
       }
@@ -99,6 +100,13 @@ public static class Program {
     var cancellationToken = cts.Token;
     smng.SetOrAddNewItem(SMNGKEY_CANCELLATION_TOKEN_SOURCE, cts);
     smng.SetOrAddNewItem(SMNGKEY_CANCELLATION_TOKEN, cancellationToken);
+
+    Console.CancelKeyPress += (sender, e) => {
+      if (e.SpecialKey == ConsoleSpecialKey.ControlC) {
+        cts.Cancel();
+        e.Cancel = true;
+      }
+    };
 
     var mreCheckSuspendedFinished = new ManualResetEventSlim();
     var checkSuspendedTask = Task.Factory.StartNew(() => {
