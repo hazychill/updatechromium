@@ -560,6 +560,22 @@ public static class Program {
       throw new Exception(string.Format("Move directory failed, dst: {1}", backupDir));
     }
 
+    int backupCycle;
+    if (!smng.TryGetItem(SMNGKEY_BACKUP_CYCLE, out backupCycle)) {
+      backupCycle = int.MaxValue;
+    }
+    var oldExeDirQuery = Directory.GetDirectories(baseDir)
+      .Select(x => Path.GetFileName(x))
+      .Where(x => Regex.IsMatch(x, "^chrome-win32~(?<num>\\d+)$")) // ^chrome-win32~(?<num>\d+)$
+      .OrderByDescending(x => int.Parse(Regex.Match(x, "^chrome-win32~(?<num>\\d+)$").Groups["num"].Value))
+      .Skip(backupCycle)
+      .Select(x => Path.Combine(baseDir, x));
+
+    foreach (string backupToDelete in oldExeDirQuery) {
+      OutputDebug(string.Format("Deleting {0}", Path.GetFileName(backupToDelete)));
+      Directory.Delete(backupToDelete, true);
+    }
+
     OutputDebug("BackupExeDir end");
   }
 
