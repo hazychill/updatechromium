@@ -522,6 +522,7 @@ public static class Program {
       try {
         if (processes.Length >= 1) {
           cancellationToken.WaitHandle.WaitOne(TimeSpan.FromSeconds(sleepSec));
+          cancellationToken.ThrowIfCancellationRequested();
         }
         else {
           break;
